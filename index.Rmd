@@ -1,0 +1,887 @@
+---
+title: "index"
+author: "Ian Matthews"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# AshplotR
+
+# Introduction
+
+This script can be used to create bi-plots and Harker plots of all tephra major elemental data. It includes interactive exploration of the data and some discussion on identifying useful elements for discrimination. Guidance for saving plots as .svg or .pdf files is also provided. All the code used to produce this document is downloadable as an RMarkdown file. To run this you will require r and RStudio. We are happy for you to use, share and improve our code, but would ask that you cite this as a poin tof origin for the plots.
+
+## Load packages
+
+We first load in packages required to generate the plots and manipulate the data. You may need to install these packages in r or update them to work correctly.
+
+```{r message = FALSE, warning = FALSE, echo=TRUE}
+library(ggplot2)
+library(factoextra)
+library(readr)
+library(compositions)
+library(gganimate)
+library(cowplot)
+library(tidyverse)
+library(gt)
+library(plotly)
+library(svglite)
+library(png)
+library(here)
+library(ggdensity)
+```
+
+
+## Load your data
+
+Any data placed within the the data file of the r project can be read using the code outlined below. As this is a Markdown script the 'here' package is used to ensure that project links do not break when moving scripts around. As long as you start a new R project and drop this script into it (using the structure outlined on the home page) then it will work. Data files should be in .csv format and contain the group of the tephra as column 1 under the title "id" (see example files for reference). Loaded here are some data for core ODP-980 in the North Atlantic and a terrestrial site from the UK called MT.
+
+```{r}
+chem <- here::here("Data","Borrobol_type.csv") %>% read.csv()
+```
+
+## Check your data has loaded correctly
+
+The following script produces a summary table of mean values and number of analyses in your data.
+
+```{r}
+chem_sum <- chem %>% group_by(id) %>% dplyr::summarise(                                            
+                                                       count=n(),
+                                                       SiO2.= mean(SiO2),
+                                                       dev_1 = sd(SiO2),
+                                                       TiO2. = mean(TiO2),
+                                                       dev_2 = sd(TiO2),
+                                                       Al2O3. = mean(Al2O3),
+                                                       dev_3 = sd(Al2O3),
+                                                       FeOt = mean(FeO),
+                                                       dev_4 = sd(FeO),
+                                                       MnO.= mean(MnO),
+                                                       dev_5 = sd(MnO),
+                                                       MgO.= mean(MgO),
+                                                       dev_6 = sd(MgO),
+                                                       CaO.= mean(CaO),
+                                                       dev_7 = sd(CaO),
+                                                       Na2O. = mean(Na2O),
+                                                       dev_8 = sd(Na2O),
+                                                       K2O. = mean(K2O),
+                                                       dev_9 = sd(K2O),
+                                                       P2O5. = mean(P2O5),
+                                                       dev_10 = sd(P2O5),
+                                                       Total.=mean(Total),
+                                                       dev_11 = sd(Total))
+chem_sum <- chem_sum %>% mutate(across(where(is.numeric), ~ round(., digits = 2)))
+chem_sum %>% rename(layer = id, n = count , SiO2 = SiO2., sd1 = dev_1, TiO2 = TiO2. , sd2 = dev_2)
+
+gt(chem_sum)
+```
+
+
+## Make TAS calculations
+
+To calculate for the TAS plot the data require normalisation of the data. The rest of the script uses unnormalised data for plotting, but the code below can be used to normalise other data also by replacing the element to be normalise.
+
+```{r}
+TAS_x <- (100/ chem [["Total"]]) * chem [["SiO2"]]
+TAS_y <- (100/ chem [["Total"]]) * (chem [["K2O"]] + chem [["Na2O"]])
+
+chem <- cbind(chem, TAS_x, TAS_y)
+```
+
+# Filtering mixed datasets
+It is possible your datasheet contains multiple types of tephra which would benefit from filtering before plotting. I suggest this is carried out by using silica values as a divisor. Rhyolites >69% silica is a case for this. However, it might be worth plotting everything first before then selecting a filter to ensure vital data is not being excluded.
+```{r}
+chem <- filter(chem, SiO2 >68)
+```
+
+
+
+# Plotting the data
+
+First we generate a series of plots from all possible pairs of elements.
+
+```{r}
+p1 <- ggplot(chem, aes(x = TAS_x, y = TAS_y, fill = id, shape = id))
+p2 <- ggplot(chem, aes(x = SiO2, y = TiO2, fill = id, shape = id))
+p3 <- ggplot(chem, aes(x = SiO2, y = Al2O3, fill = id, shape = id))
+p4 <- ggplot(chem, aes(x = SiO2, y = FeO,  fill = id, shape = id))
+p5 <- ggplot(chem, aes(x = SiO2, y = MnO,  fill = id, shape = id))
+p6 <- ggplot(chem, aes(x = SiO2, y = MgO,  fill = id, shape = id))
+p7 <- ggplot(chem, aes(x = SiO2, y = CaO,  fill = id, shape = id))
+p8 <- ggplot(chem, aes(x = SiO2, y = Na2O,  fill = id, shape = id))
+p9 <- ggplot(chem, aes(x = SiO2, y = K2O,  fill = id, shape = id))
+p47 <- ggplot(chem, aes(x = SiO2, y = K2O, fill = id, shape = id))
+p10 <- ggplot(chem, aes(x = SiO2, y = P2O5,  fill = id, shape = id))
+p11 <- ggplot(chem, aes(x = TiO2, y = Al2O3,  fill = id, shape = id))
+p12 <- ggplot(chem, aes(x = TiO2, y = FeO,  fill = id, shape = id))
+p13 <- ggplot(chem, aes(x = TiO2, y = MnO,  fill = id, shape = id))
+p14 <- ggplot(chem, aes(x = TiO2, y = MgO,  fill = id, shape = id))
+p15 <- ggplot(chem, aes(x = TiO2, y = CaO,  fill = id, shape = id))
+p16 <- ggplot(chem, aes(x = TiO2, y = Na2O,  fill = id, shape = id))
+p17 <- ggplot(chem, aes(x = TiO2, y = K2O,  fill = id, shape = id))
+p18 <- ggplot(chem, aes(x = TiO2, y = P2O5,  fill = id, shape = id))
+p19 <- ggplot(chem, aes(x = Al2O3, y = FeO,  fill = id, shape = id))
+p20 <- ggplot(chem, aes(x = Al2O3, y = MnO,  fill = id, shape = id))
+p21 <- ggplot(chem, aes(x = Al2O3, y = MgO,  fill = id, shape = id))
+p22 <- ggplot(chem, aes(x = Al2O3, y = CaO,  fill = id, shape = id))
+p23 <- ggplot(chem, aes(x = Al2O3, y = Na2O,  fill = id, shape = id))
+p24 <- ggplot(chem, aes(x = Al2O3, y = K2O,  fill = id, shape = id))
+p25 <- ggplot(chem, aes(x = Al2O3, y = P2O5,  fill = id, shape = id))
+p26 <- ggplot(chem, aes(x = FeO, y = MnO,  fill = id, shape = id))
+p27 <- ggplot(chem, aes(x = FeO, y = MgO,  fill = id, shape = id))
+p28 <- ggplot(chem, aes(x = FeO, y = CaO,  fill = id, shape = id))
+p29 <- ggplot(chem, aes(x = FeO, y = Na2O,  fill = id, shape = id))
+p30 <- ggplot(chem, aes(x = FeO, y = K2O,  fill = id, shape = id))
+p31 <- ggplot(chem, aes(x = FeO, y = P2O5,  fill = id, shape = id))
+p32 <- ggplot(chem, aes(x = MnO, y = MgO,  fill = id, shape = id))
+p33 <- ggplot(chem, aes(x = MnO, y = CaO,  fill = id, shape = id))
+p34 <- ggplot(chem, aes(x = MnO, y = Na2O,  fill = id, shape = id))
+p35 <- ggplot(chem, aes(x = MnO, y = K2O,  fill = id, shape = id))
+p36 <- ggplot(chem, aes(x = MnO, y = P2O5,  fill = id, shape = id))
+p37 <- ggplot(chem, aes(x = MgO, y = CaO,  fill = id, shape = id))
+p38 <- ggplot(chem, aes(x = MgO, y = Na2O,  fill = id, shape = id))
+p39 <- ggplot(chem, aes(x = MgO, y = K2O,  fill = id, shape = id))
+p40 <- ggplot(chem, aes(x = MgO, y = P2O5,  fill = id, shape = id))
+p41 <- ggplot(chem, aes(x = CaO, y = Na2O,  fill = id, shape = id))
+p42 <- ggplot(chem, aes(x = CaO, y = K2O,  fill = id, shape = id))
+p43 <- ggplot(chem, aes(x = CaO, y = P2O5,  fill = id, shape = id))
+p44 <- ggplot(chem, aes(x = Na2O, y = K2O,  fill = id, shape = id))
+p45 <- ggplot(chem, aes(x = Na2O, y = P2O5,  fill = id, shape = id))
+p46 <- ggplot(chem, aes(x = K2O, y = P2O5,  fill = id, shape = id))
+```
+
+
+## Custom tephra theme
+To ensure consistency and to provide a shortcut of coding it everytime we set up[ a custom tephra plotting theme. This means all of our plots will have the same sized fonts etc...
+
+
+```{r}
+Tephra.theme <-theme_bw()+theme(axis.title.x=element_text(size=16),
+                                axis.title.y=element_text(size=16), 
+                                axis.text.x=element_text(size=16),
+                                axis.text.y=element_text(size=16))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+```
+
+## Custom colour palette
+
+The hex numbers below specify a custom colour palette for plotting. These can be altered but were slected in order to help those with colour vision deficiencies, and this should be considered when making changes. At present 35 layers can be plotted using this pallete. If you have more than 35 groups of data you will either have to specify additional colours or consider splitting your dataset. The latter might be more appropriate for improving the final clarity in the plots. 
+
+```{r}
+chempalette <- c("#209A24","#A769EE","#B4C428","#e30303","#000000","#EF139D","#3A700F","#5288FF","#E64701","#7F9AF5","#F36D20","#0B3075","#C18522","#9634A6","#1D7D46","#80ddb8","#7CBC92","#B10E89","#384B27","#F896FD","#C6A766","#20628E","#9C0323","#C3AFE0","#572D24","#FF79A2","#3E6D6F","#E18C63","#6F2B40","#DF9FB4", "#291700", "#7e005b", "#00597a" , "#7b003a",	"#470600")
+```
+
+The palette is known as "chempalette".
+
+# Figures {.tabset .tabset-pills}
+
+We first generate the simple bi-plots of each element. This initial explorative approach facilitates data checking for unusual analyses and permits the identification of elements with significant variability.
+
+## TAS plot Le Maitre et al. (2002)
+```{r TAS plot, echo=FALSE}
+p1 <- p1 + geom_point(aes(fill = id), size=4, alpha=0.8) +
+  #xlab(expression (SiO[2]~"(wt%)")) + use these for outputting subscript characters for saved svg or pdf plots.
+  xlab("SiO2 (wt%)") +
+  #ylab(expression (Na[2]*O~"+"~K[2]*O~"(wt%)")) +
+  ylab("Na2O + K2O (wt%)") +
+  scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) + 
+  geom_segment(x=77,y=0,xend=69,yend=8)+ 
+  geom_segment(x=69, y=8,xend=69,yend=13)+geom_segment(x=41, y=7,xend=52.5,yend=14)+
+  geom_segment(x=52.5,y=14,xend=57.6,yend=11.7)+
+  geom_segment(x=45,y=0,xend=45,yend=5)+
+  geom_segment(x=45,y=5,xend=63,yend=14.56)+
+  geom_segment(x=52,y=0,xend=52,yend=5)+
+  geom_segment(x=52,y=5,xend=63,yend=7)+
+  geom_segment(x=57,y=0,xend=57,yend=5.9)+
+  geom_segment(x=63,y=0,xend=63,yend=7)+
+  geom_segment(x=45,y=5,xend=52,yend=5)+
+  geom_segment(x=52,y=5,xend=49.4,yend=7.3)+
+  geom_segment(x=57,y=5.9,xend=53,yend=9.3)+
+  geom_segment(x=63,y=7,xend=57.6,yend=11.7)+
+  geom_segment(x=49.4,y=7.3,xend=45,yend=9.4)+
+  geom_segment(x=53,y=9.3,xend=48.4,yend=11.5)+
+  geom_segment(x=41,y=0,xend=41,yend=7)+
+  geom_segment(x=52.5,y=14,xend=49,yend=15.5)+
+  geom_segment(x=41,y=3,xend=45,yend=3)+
+  geom_segment(x=63,y=7,xend=69,yend=8)+
+  scale_x_continuous(limits=c(40, 80), expand = c(0, 0)) + 
+  scale_y_continuous(limits=c(0, 16), expand = c(0, 0)) +
+  annotate("text", x = c(76,67.5,59,54,48,42.5,48.5,53,57,63,43,48,53,57,42), y = c(6,5.2,4,3,2.5,1.5,6,7.5,8.8,11,7,10,12,14.5,13), label = c("R","O3","O2","O1","B","Pc","S1","S2","S3","T","U1","U2","U3","Ph","F")) +
+  Tephra.theme
+p1
+```
+
+## SiO2 VS TiO2
+```{r echo=FALSE}
+p2 <- p2 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("TiO2 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p2
+```
+
+## SiO2 VS Al2O3
+```{r echo=FALSE}
+p3 <- p3 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("Al2O3 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p3
+```
+
+## SiO2 VS FeO
+```{r echo=FALSE}
+p4 <- p4 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("FeO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p4
+```
+
+## SiO2 VS MnO
+```{r echo=FALSE}
+p5 <- p5 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("MnO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p5
+```
+
+## SiO2 VS MgO
+```{r echo=FALSE}
+p6 <- p6 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("MgO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p6
+```
+
+## SiO2 VS CaO
+```{r echo=FALSE}
+p7 <- p7 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p7
+```
+
+## SiO2 VS Na2O
+```{r echo=FALSE}
+p8 <- p8 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p8
+```
+
+## SiO2 VS K2O
+```{r echo=FALSE}
+p9 <- p9 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p9
+```
+
+```{r echo=FALSE}
+p47 <- p47 + geom_point(aes(fill = id), size=4, alpha=0.8)+
+  xlab("SiO2 (wt%)")+ylab("K2O (wt%)")+
+  scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  geom_segment(x=48,y=1.6,xend=52,yend=2.4)+ 
+  geom_segment(x=52, y=2.4,xend=56,yend=3.2)+
+  geom_segment(x=56, y=3.2,xend=63,yend=4.0)+
+  geom_segment(x=48,y=1.2,xend=52,yend=1.5)+
+  geom_segment(x=52,y=1.5,xend=56,yend=1.8)+
+  geom_segment(x=56,y=1.8,xend=63,yend=2.4)+
+  geom_segment(x=63,y=2.4,xend=70,yend=3.0)+
+  geom_segment(x=48,y=0.3,xend=52,yend=0.5)+
+  geom_segment(x=52,y=0.5,xend=56,yend=0.7)+
+  geom_segment(x=56,y=0.7,xend=63,yend=1.0)+
+  geom_segment(x=63,y=1.0,xend=70,yend=1.3)+
+  geom_segment(x=70,y=1.3,xend=80,yend=1.6)+
+  Tephra.theme
+p47
+```
+
+## SiO2 VS P2O5
+```{r echo=FALSE}
+p10 <- p10 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p10
+```
+
+## TiO2 VS Al2O3
+```{r echo=FALSE}
+p11 <- p11 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("Al2O3 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p11
+```
+
+## TiO2 vs FeO
+```{r echo=FALSE}
+p12 <- p12 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("FeO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p12
+```
+
+## TiO2 vs MnO
+```{r echo=FALSE}
+p13 <- p13 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("MnO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p13
+```
+
+## TiO2 VS MgO
+```{r echo=FALSE}
+p14 <- p14 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("MgO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p14
+```
+
+## TiO2 VS CaO
+```{r echo=FALSE}
+p15 <- p15 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p15
+```
+
+## TiO2 VS Na2O
+```{r echo=FALSE}
+p16 <- p16 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p16
+```
+
+## TiO2 VS K2O
+```{r echo=FALSE}
+p17 <- p17 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p17
+```
+
+## TiO2 VS P2O5
+```{r echo=FALSE}
+p18 <- p18 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("TiO2 (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p18
+```
+
+## Al2O3 VS FeO
+```{r echo=FALSE}
+p19 <- p19 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("FeO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p19
+```
+
+## Al2O3 VS MnO
+```{r echo=FALSE}
+p20 <- p20 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("MnO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p20
+```
+
+## Al2O3 VS MgO
+```{r}
+p21 <- p21 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("MgO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p21
+```
+
+## Al2O3 VS CaO
+```{r echo=FALSE}
+p22 <- p22 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p22
+```
+
+## Al2O3 VS Na2O
+```{r echo=FALSE}
+p23 <- p23 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p23
+```
+
+## Al2O3 VS K2O
+```{r echo=FALSE}
+p24 <- p24 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p24
+```
+
+## Al2O3 VS P2O5
+```{r echo=FALSE}
+p25 <- p25 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p25
+```
+
+## FeO VS MnO
+```{r echo=FALSE}
+p26 <- p26 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("MnO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p26
+```
+
+## FeO vs MgO
+```{r echo=FALSE}
+p27 <- p27 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("MgO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p27
+```
+
+## FeO vs CaO
+```{r echo=FALSE}
+p28 <- p28 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p28
+```
+
+## FeO VS Na2O
+```{r echo=FALSE}
+p29 <- p29 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p29
+```
+
+## FeO VS K2O
+```{r echo=FALSE}
+p30 <- p30 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p30
+```
+
+## FeO VS P2O5
+```{r echo=FALSE}
+p31 <- p31 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p31
+```
+
+## MnO VS MgO
+```{r echo=FALSE}
+p32 <- p32 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MnO (wt%)")+ylab("MgO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p32
+```
+
+## MnO VS CaO
+```{r echo=FALSE}
+p33 <- p33 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MnO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p33
+```
+
+## MnO VS Na2O
+```{r echo=FALSE}
+p34 <- p34 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MnO (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p34
+```
+
+## MnO VS K2O
+```{r echo=FALSE}
+p35 <- p35 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MnO (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p35
+```
+
+## MnO VS P2O5
+```{r echo=FALSE}
+p36 <- p36 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MnO (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p36
+```
+
+## MgO VS CaO
+```{r echo=FALSE}
+p37 <- p37 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MgO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p37
+```
+
+## MgO VS Na2O
+```{r echo=FALSE}
+p38 <- p38 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MgO (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p38
+```
+
+## MgO VS K2O
+```{r echo=FALSE}
+p39 <- p39 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MgO (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p39
+```
+
+## MgO VS P2O5
+```{r echo=FALSE}
+p40 <- p40 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("MgO (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p40
+```
+
+## CaO VS Na2O
+```{r echo=FALSE}
+p41 <- p41 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("CaO (wt%)")+ylab("Na2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p41
+```
+
+## CaO VS K2O
+```{r echo=FALSE}
+p42 <- p42 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("CaO (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p42
+```
+
+## CaO VS P2O5
+```{r echo=FALSE}
+p43 <- p43 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("CaO (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p43
+```
+
+## Na2O VS K2O
+```{r echo=FALSE}
+p44 <- p44 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Na2O (wt%)")+ylab("K2O (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p44
+```
+
+## Na2O VS P2O5
+```{r echo=FALSE}
+p45 <- p45 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Na2O (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p45
+```
+
+## K2O VS P2O5
+```{r echo=FALSE}
+p46 <- p46 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("K2O (wt%)")+ylab("P2O5 (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+p46
+```
+# {-}
+
+# Saving individual plots
+
+We propose exporting your plots in .svg format. This is a vector file format that preserves your data without size and scaling issues. It is also readable and editable by software like Adobe Illustrator, Affinity Designer, or free alternatives like Inkscape. .Using the file structure presented here the all plots can be named appropriately and will be saved in the Output -> Plots folder. The width and height and dpi outputs can be altered but override the preview functions in Rstudio and we recommend that you view the svg file directly in you preferred image editor to understand how it might look.
+
+```{r}
+ggsave( filename = file.path("Script", "Output","Plots","fig1.svg"), plot = p1, width = 12, height = 6, dpi = 300)
+```
+
+# Multivariate analysis {.tabset .tabset-pills}
+Multivariate analysis via ordination is often a helpful way of exploring your data. It permits the identification of useful elements for discrimination and facilitates dimension reduction. Unfortunately, percentage data can have problematic covariation and should be 'freed' from their compositional sum where possible. This can be achieved via undertaking a centred log-ratio transform.
+
+## centred log-ratio data table
+```{r}
+chem_multi <- chem[ -c(1,6,11,12)] ## check columns to drop. Currently dropping id, MnO, P2O5, and Total to perform the clr transform.
+chem_multi[is.na(chem_multi)] <- 0.005 # replace NAs with half the detection limit
+chem_multi_clr <- clr(chem_multi)
+cmclr <- as.data.frame(chem_multi_clr)
+head(cmclr)
+```
+
+We can summarise the importance of the resulting principal components by summarizing how much of the total variance is captured by each principal component.
+
+## PCA summary
+```{r echo=FALSE}
+pcascores <- prcomp(cmclr)
+summ <- as.data.frame(summary(pcascores)$importance)
+summ <- tibble::rownames_to_column(summ, "Information")
+summ %>% gt()
+```
+If this has captured a significant amount of variation it would be worth plotting the output in order to identify the important variables in determining the changes observed.
+
+## PCA scores scree plot
+```{r warning = FALSE, echo=FALSE}
+fviz_eig(pcascores)
+
+```
+
+This is a visual representation of the summary table showing the percentage of the total variance explained by each dimension.
+
+## Variables PCA plot
+```{r warning = FALSE, echo=FALSE}
+fviz_pca_var(pcascores, col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+)
+```
+
+
+## Loadings dimension 1
+```{r echo=FALSE}
+fviz_contrib(pcascores, choice="var", axes = 1,fill = "#00AFBB", color = "black") +theme_minimal() +theme(axis.text.x = element_text(angle=45))
+```
+
+## Loadings dimension 2
+
+```{r echo=FALSE}
+fviz_contrib(pcascores, choice="var", axes = 2,fill = "#00AFBB", color = "black") +theme_minimal() +theme(axis.text.x = element_text(angle=45))
+```
+
+## PCA - Biplot
+```{r warning = FALSE, echo=FALSE}
+fviz_pca_biplot(pcascores, repel = FALSE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+)
+```
+
+## PCA - grouped
+```{r warning = FALSE, echo=FALSE}
+pcout <- pcascores$x
+id <- as.data.frame(chem$id)
+id <- unlist(id)
+id <- as_data_frame(id)
+pcout <- cbind(id, pcout)
+colnames(pcout)[colnames(pcout)=="value"] <- "id"
+pc1plot <- ggplot(pcout, aes(x = PC1, y = PC2, fill = id, shape = id))
+pc1plot <- pc1plot + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("PC1")+ylab("PC2")+theme_bw()+theme(axis.title.x=element_text(size=16), axis.title.y=element_text(size=16), axis.text.x=element_text(size=16), axis.text.y=element_text(size=16))+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+scale_colour_manual(values = chempalette) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = chempalette) +
+  scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))
+
+  pc1plot
+```
+
+# {-}
+
+
+# Interactive figures {.tabset .tabset-pills}
+
+The function ggplotly within the plotly package is extremely useful for interactively examining data. ggplotly plots allow you to zoom into areas of interest and turn layers on and off as well as saving low resolution .png files of zoomed sections of your plots.We refer to these as iPlots in order to distinguish them from static plots presented above.
+
+## iTAS plot
+```{r warning = FALSE, echo=FALSE}
+ggplotly(p1, width = 1000, height = 800)
+```
+
+## iFeO-CaO
+```{r warning = FALSE, echo=FALSE}
+ggplotly(p28, width = 1000, height = 800)
+```
+## iK-lines
+```{r warning = FALSE, echo=FALSE}
+ggplotly(p47, width = 1000, height = 800, dynamicTicks = TRUE)
+```
+## iTiO2 vs Al2O3
+```{r warning = FALSE, echo=FALSE}
+ggplotly(p11, width = 1000, height = 800, dynamicTicks = TRUE)
+```
+
+
+## iK2O vs CaO
+```{r warning = FALSE, echo=FALSE}
+ggplotly(p42, width = 1000, height = 800, dynamicTicks = TRUE)
+```
+
+
+
+## {-}
+
+# Saving all figures to a .pdf
+```{r}
+l <- list(p1, p2, p3, p4, p5, p6, p7, p8, p9, p47, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46)
+pdf("allplotsout.pdf", width = 12, height = 6)
+invisible(lapply(l, print))
+dev.off()
+```
+
+## Harker plot
+It is frequently useful to plot all of the collected elemental data against SiO[2]. This permits an assessme tof groupings within the data and which elements might be useful discriminators. Additionally, wt% K2O vs SiO2 can further classify the tephra to low, mid and high Potassium values. The dividing lines included here are from xxxxxxxx.
+```{r fig.height = 10, fig.width = 18}
+g1 <- plot_grid(p1 + theme(legend.position = "none"), 
+                p2 + theme(legend.position = "none"),
+                p3 + theme(legend.position="none"),
+                p4 + theme(legend.position="none"),
+                p5 + theme(legend.position="none"),
+                p6 + theme(legend.position="none"),
+                p7 + theme(legend.position="none"),
+                p8 + theme(legend.position="none"), 
+                p47 + theme(legend.position="none"), 
+                p10 + theme(legend.position="none"),
+                labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"), align = "b")
+legend <- get_legend(p1)
+legplot <- plot_grid(legend)
+px <- plot_grid( g1, rel_widths = c(4, 1))
+l2 <- list(px,legplot)
+pdf("Script/Output/Plots/Harkerplot.pdf", width = 30, height = 20)
+invisible(lapply(l2, print))
+dev.off()
+
+ggsave( filename = file.path("Script","Output","Plots","Harker.svg"), plot = px, width = 30, height = 20, dpi = 300)
+
+print(g1)
+
+```
+
+# Other useful R tricks
+## Creating an inset within a figure
+```{r warning=FALSE }
+p100 <- ggplot(chem, aes(x = TAS_x, y = TAS_y, fill = id, shape = id))
+p100 <- p100 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("Na2O+K2O (wt%)")+
+  scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +geom_segment(x=77,y=0,xend=69,yend=8)+ 
+  geom_segment(x=69, y=8,xend=69,yend=13)+geom_segment(x=41, y=7,xend=52.5,yend=14)+
+  geom_segment(x=52.5,y=14,xend=57.6,yend=11.7)+geom_segment(x=45,y=0,xend=45,yend=5)+
+  geom_segment(x=45,y=5,xend=63,yend=14.56)+geom_segment(x=52,y=0,xend=52,yend=5)+
+  geom_segment(x=52,y=5,xend=63,yend=7)+geom_segment(x=57,y=0,xend=57,yend=5.9)+
+  geom_segment(x=63,y=0,xend=63,yend=7)+geom_segment(x=45,y=5,xend=52,yend=5)+
+  geom_segment(x=52,y=5,xend=49.4,yend=7.3)+geom_segment(x=57,y=5.9,xend=53,yend=9.3)+
+  geom_segment(x=63,y=7,xend=57.6,yend=11.7)+geom_segment(x=49.4,y=7.3,xend=45,yend=9.4)+
+  geom_segment(x=53,y=9.3,xend=48.4,yend=11.5)+geom_segment(x=41,y=0,xend=41,yend=7)+
+  geom_segment(x=52.5,y=14,xend=49,yend=15.5)+geom_segment(x=41,y=3,xend=45,yend=3)+
+  geom_segment(x=63,y=7,xend=69,yend=8)+
+  scale_x_continuous(limits=c(74, 79), expand = c(0, 0)) + ## set x axis of insert
+  scale_y_continuous(limits=c(6, 10.5), expand = c(0, 0)) + ## set y axis of insert
+  theme_bw()+theme(axis.title.x=element_text(size=9), axis.title.y=element_text(size=9), 
+                   axis.text.x=element_text(size=9), axis.text.y=element_text(size=9))+ ## change the text size as neccessary
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none")
+fig_in <- p1 + annotation_custom(ggplotGrob(p100), xmin = 40, xmax = 56, ymin = 7, ymax = 16) + ## place the insert
+   annotate("rect", xmin = 74, xmax = 79, ymin = 6, ymax = 10.5,
+  alpha = .2) ## use this to highlight the area of the insert plot
+```
+
+```{r fig.height = 10, fig.width = 18}
+ggsave( filename = file.path("Script", "Output","Plots","insert_plot.svg"), plot = fig_in, width = 10, height = 6, dpi = 300)
+
+print(fig_in)
+```
+## Creating a HDR plot to simplify your data.
+Simplifying the data we create to make more visually compelling figures can be acheived using highest density regions. The following code permits this as an addition to the previosuly created plots. It can be added easily to any of the previously created plots by changing the p code. Visibility of the density regions can be applied to just reference data or entire datasets. Opacity is varied using the alpha command and the probability range can be altered in the 'probs' argument. You may need to vary the x and y axes in order to fit the full range in to the plot.
+
+```{r}
+p28den <- p28 +
+geom_hdr(stat= "hdr", method = "kde", na.rm = TRUE, inherit.aes = TRUE, alpha  = 0.3, xlim = c(0,100), ylim = c(0,30), smooth = TRUE, n = 1000, probs = c(0.75))
+print(p28den)
+
+
+```
+
+The plots are nice but messy and still have lots of overplotting. If you have particularly messy data I'd suggest creating plot 'facets' using the following code.
+
+```{r}
+p28den_facet <- p28 +
+geom_hdr(method = "kde", alpha  = 0.5, xlim = c(0,100), ylim = c(0,30), show.legend = FALSE, smooth = TRUE, n = 1000, probs = c(0.95)) +
+  facet_wrap(~ id)
+
+
+print(p28den_facet)
+```
+
+
+```{r}
+chem2 <- dplyr::select(chem, -Total)
+chem2 <- rename(chem2, id2=id)
+f19 <- ggplot(chem, aes(x = Al2O3, y = CaO,  fill = id, shape = id))
+
+f19 <- f19 + 
+    geom_point(data = chem2, inherit.aes = FALSE, aes(x=Al2O3, y = CaO, shape = id2), colour = "grey70") +
+  geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme +
+  facet_wrap(~ id)
+
+ggsave( filename = file.path("Script", "Output","Plots","faceted plot.pdf"), plot = f19, width = 25, height = 16, units = "cm", dpi = 300)
+
+print(f19)
+
+```
+```{r}
+unknowns <- here::here("Data","Ardtoe_16.5_B_type.csv") %>% read.csv()
+gt(unknowns)
+```
+```{r}
+unknown_sum <- unknowns %>% group_by(id2) %>% dplyr::summarise(                                            
+                                                       count=n(),
+                                                       SiO2.= mean(SiO2),
+                                                       dev_1 = sd(SiO2),
+                                                       TiO2. = mean(TiO2),
+                                                       dev_2 = sd(TiO2),
+                                                       Al2O3. = mean(Al2O3),
+                                                       dev_3 = sd(Al2O3),
+                                                       FeOt = mean(FeO),
+                                                       dev_4 = sd(FeO),
+                                                       MnO.= mean(MnO),
+                                                       dev_5 = sd(MnO),
+                                                       MgO.= mean(MgO),
+                                                       dev_6 = sd(MgO),
+                                                       CaO.= mean(CaO),
+                                                       dev_7 = sd(CaO),
+                                                       Na2O. = mean(Na2O),
+                                                       dev_8 = sd(Na2O),
+                                                       K2O. = mean(K2O),
+                                                       dev_9 = sd(K2O),
+                                                       P2O5. = mean(P2O5),
+                                                       dev_10 = sd(P2O5),
+                                                       Total.=mean(Total),
+                                                       dev_11 = sd(Total))
+unknown_sum <- unknown_sum %>% mutate(across(where(is.numeric), ~ round(., digits = 2)))
+unknown_sum %>% rename(layer = id2, n = count , SiO2 = SiO2., sd1 = dev_1, TiO2 = TiO2. , sd2 = dev_2)
+
+gt(unknown_sum)
+```
+```{r}
+chem_red <- filter(chem, age == "WI"|age == "GS2")
+
+c28 <- ggplot(chem_red, aes(x = FeO, y = CaO,  fill = id, shape = id))
+c28 <- c28 + 
+  geom_hdr(method = "kde", alpha  = 0.5, xlim = c(0,100), ylim = c(0,30), show.legend = FALSE, smooth = TRUE, n = 1000, probs = c(0.95)) +
+   scale_fill_manual(values = chempalette) +
+    geom_point(data = unknowns, inherit.aes = FALSE, aes(x=FeO, y = CaO, shape = id2, fill = id2), size=4, alpha=0.8) +
+  xlab("FeO (wt%)") +
+  ylab("CaO (wt%)") + 
+   scale_fill_manual(values = chempalette) +
+  scale_shape_manual(values=c(1:5,7,11, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25)) +
+  Tephra.theme
+print(c28)
+```
+```{r}
+u28 <- ggplot(chem_red, aes(x = FeO, y = CaO,  fill = id, shape = id))
+u28 <- u28 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+      geom_point(data = unknowns, inherit.aes = FALSE, aes(x=FeO, y = CaO, shape = id2, fill = id2), size=4, alpha=0.8) +
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme
+
+ggplotly(u28, width = 1000, height = 800)
+```
+
+
+
+# References
+R. W. Le Maitre (editor), A. Streckeisen, B. Zanettin, M. J. Le Bas, B. Bonin, P. Bateman, G. Bellieni, A. Dudek, S. Efremova, J. Keller, J. Lamere, P. A. Sabine, R. Schmid, H. Sorensen, and A. R. Woolley, Igneous Rocks: A Classification and Glossary of Terms, Recommendations of the International Union of Geological Sciences, Subcommission of the Systematics of Igneous Rocks. Cambridge University Press, 2002.
+
