@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Matthews"
+  given-names: "Ian"
+  orcid: "https://orcid.org/0000-0002-1642-7346"
+- family-names: "Pike"
+  given-names: "Joshua"
+title: "AshplotR: a collection of code for plotting tephra chemical data"
+version: 1.0
+date-released: 2022-12-20
+url: "https://ianpmatthews.github.io/AshplotR/"
