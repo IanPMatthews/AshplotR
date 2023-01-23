@@ -795,6 +795,7 @@ ggsave( filename = file.path("Script", "Output","Plots","insert_plot.svg"), plot
 
 print(fig_in)
 ```
+
 ## 10.2 Creating a HDR plot to simplify your data.
 Simplifying the data we create to make more visually compelling figures can be achieved using highest density regions. The following code permits this as an addition to the previously created plots and as new plots. It can be added easily to any of the previously created plots by changing the p code. Visibility of the density regions can be applied to just reference data or entire datasets. Opacity is varied using the alpha command and the probability range can be altered in the 'probs' argument. You may need to vary the x and y axes in order to fit the full range in to the plot. These types of plots are best used for giving better eruptive chemical envelopes (fields) than hand drawing around existing data. 
 
@@ -817,7 +818,8 @@ geom_hdr(method = "kde", alpha  = 0.5, xlim = c(0,100), ylim = c(0,30), show.leg
 
 print(p28den_facet)
 ```
-The facet removes some of the complexity, but arguably you lose some of the key information about total ranges of chemical data. In the second faceted plot (below) we remove the kernel density information and use the total dataset as a background to the facets in order to understand the total range and our own individual samples. This requires a little bit of data manipulation in order to create two datasets, one for the total data spread and another for the facets.
+
+The facet removes some of the complexity and permits the kde to be visualised more clearly, but arguably you lose some of the key information about total ranges of chemical data. In the second faceted plot (below) we remove the kernel density information and use the total dataset as a background to the facets in order to understand the total range and our own individual samples. This requires a little bit of data manipulation in order to create two datasets, one for the total data spread and another for the facets.
 
 ```{r}
 chem2 <- dplyr::select(chem, -Total) # creates the second dataset fpr plotting
@@ -829,66 +831,77 @@ f19 <- f19 +
   geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+ # adds all the data again but retain the groups
   scale_fill_manual(values = chempalette) + ## adds standard colours
   Tephra.theme + # adds standard theme
+  coord_cartesian(xlim = c(0,20), ylim = c(0,15)) + # scale the plots to display the data effectively
   facet_wrap(~ id) # facets the diagram using id in the main dataset.
 
-ggsave( filename = file.path("Script", "Output","Plots","faceted plot.pdf"), plot = f19, width = 25, height = 16, units = "cm", dpi = 300)
-
 print(f19)
+
+ggsave( filename = file.path("Script", "Output","Plots","faceted plot.pdf"), plot = f19, width = 30, height = 20, units = "cm", dpi = 300)
+
+
 
 ```
 
 # 11.0 Comparing unknown samples
+All of the above code can be used on unknown samples and for your own data exploration. It can also be used to explore a reference dataset in order to understand what chemical plots can be used to best differentiate tephra from different volcanoes and even different eruptions. However, some times it is better to keep the exploration and analysis phases separate. This section looks at importing a specific unknown tephra and making direct comparisons to a reference dataset. It uses the ODP-980 data presented above as a record of volcanism in the North Atlantic during MIS-11c and then compares this with our unknown tephra from a site in England called Marks Tey. First we load and summarise the data as before but then we look at filtering and presenting the data more clearly.
 
+This code loads our unknown data from a normalised dataset called MT_norm.csv. We then present all of the data in a table.
 ```{r}
 unknowns <- here::here("Data","MT_norm.csv") %>% read.csv()
 gt(unknowns)
 ```
+
+Like before this is useful to use to understand that our data has loaded correctly, but a summary table might be more useful. This is performed using the code from section 2.2.
 ```{r}
 unknown_sum <- unknowns %>% group_by(id2) %>% dplyr::summarise(                                            
                                                        count=n(),
                                                        SiO2.= mean(SiO2),
-                                                       dev_1 = sd(SiO2),
+                                                       sd1 = sd(SiO2),
                                                        TiO2. = mean(TiO2),
-                                                       dev_2 = sd(TiO2),
+                                                       sd2 = sd(TiO2),
                                                        Al2O3. = mean(Al2O3),
-                                                       dev_3 = sd(Al2O3),
+                                                       sd3 = sd(Al2O3),
                                                        FeOt = mean(FeO),
-                                                       dev_4 = sd(FeO),
+                                                       sd4 = sd(FeO),
                                                        MnO.= mean(MnO),
-                                                       dev_5 = sd(MnO),
+                                                       sd5 = sd(MnO),
                                                        MgO.= mean(MgO),
-                                                       dev_6 = sd(MgO),
+                                                       sd6 = sd(MgO),
                                                        CaO.= mean(CaO),
-                                                       dev_7 = sd(CaO),
+                                                       sd7 = sd(CaO),
                                                        Na2O. = mean(Na2O),
-                                                       dev_8 = sd(Na2O),
+                                                       sd8 = sd(Na2O),
                                                        K2O. = mean(K2O),
-                                                       dev_9 = sd(K2O),
+                                                       sd9 = sd(K2O),
                                                        P2O5. = mean(P2O5),
-                                                       dev_10 = sd(P2O5),
+                                                       sd10 = sd(P2O5),
                                                        Total.=mean(Total),
-                                                       dev_11 = sd(Total))
+                                                       sd11 = sd(Total))
 unknown_sum <- unknown_sum %>% mutate(across(where(is.numeric), ~ round(., digits = 2)))
-unknown_sum %>% rename(layer = id2, n = count , SiO2 = SiO2., sd1 = dev_1, TiO2 = TiO2. , sd2 = dev_2)
+unknown_sum %>% rename(layer = id2, n = count , SiO2 = SiO2., TiO2 = TiO2.)
 
 gt(unknown_sum)
 ```
+We evidently have a relatively homogenous highly silicic tephra with average silica values of 77.29 %wt and FeOt values below 3%wt. We could undertake further plots to check this out, but it might also be an examination of the tabular data is sufficient for this purpose. This helps us to filter our possible correlatives. We can also restrict our possible correlatives using other stratigraphic and chronological data. This might be plausible time windows that the tephra could occur or other factors. The ODP-980 data have some additional information that might aid some discrimination. The publication lists sections of Ice rafted debris (IRD) which reflect mixtures of ash layers and therefore not primary tephra deposits. We will exclude these here in order to only deal with potential primary ash layers.
+
 ```{r}
-chem_red <- filter(chem, IRD == "NO") #We might want to filter our data by age or other stratigraphic information. here we are uexcluding layers identified as ice rafted debris.
+chem_red <- filter(chem, IRD == "NO") #We might want to filter our data by age or other stratigraphic information. here we are excluding layers identified as ice rafted debris. This can be achieved using additional columns in the input data sheet. All of the plotting code will ignore these unless told otherwise.
 
-chem_red <- filter(chem_red, SiO2 >69 & FeO <4) # Our unknown sample is a rhyolite so we can now employ our filtering by value
+chem_red <- filter(chem_red, SiO2 >68 & FeO <4) # Our unknown sample is a rhyolite so we can now employ our filtering by value, we can also exclude some of the high iron examples in the ODP-980 dataset.
 
-c28 <- ggplot(chem_red, aes(x = SiO2, y = CaO, fill = id, shape = id))
+c28 <- ggplot(chem_red, aes(x = SiO2, y = CaO, fill = id, shape = id)) # create a new plot using the reduced chemical comparison data
 c28 <- c28 + 
-  geom_hdr(method = "kde", alpha  = 0.4, xlim = c(0,100), ylim = c(0,30), show.legend = TRUE, smooth = TRUE, n = 500, probs = c(0.95), color = "black") +
-   scale_fill_viridis(discrete = TRUE) +
-    geom_point(data = unknowns, inherit.aes = FALSE, aes(x=SiO2, y = CaO, shape = id2, fill = id2), size=4, alpha=0.7, show.legend = FALSE) +
-  xlab("SiO2 (wt%)") +
+  geom_hdr(method = "kde", alpha  = 0.4, xlim = c(0,100), ylim = c(0,30), show.legend = TRUE, smooth = TRUE, n = 500, probs = c(0.95), color = "black") + # Add the ODP-980 data as a kde field for comparison this uses 95% probability ranges for comparison.
+   scale_fill_viridis(discrete = TRUE) + # We will use the Viridis scale for now as this gives relatively good differentiation.
+    geom_point(data = unknowns, inherit.aes = FALSE, aes(x=SiO2, y = CaO, shape = id2, fill = id2), size=4, alpha=0.7, show.legend = FALSE) + # we take our unknown data and plot it as points
+  xlab("SiO2 (wt%)") + # Label our axes
   ylab("CaO (wt%)") + 
   scale_shape_manual(values=c(1:5,7,11, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25)) +
-  Tephra.theme
+  Tephra.theme # add the tephra theme.
 print(c28)
 ```
+We can see that only samples 54.79-54.83 and 51.09-51.13 have any overlap with our unknown at 95% probability. It is worth noting here that this is in part down to our filtering of the data in the previous step. We need to be sure that we are not excluding important data when undertaking this step otehrwise our resulting kdes can be strongly altered. Therefore it is also sensible to plot the raw point data for comparison also. The interactive plot below uses the same elements but permits exploration of the data. From this we can see that 54.79-54.83 is the best match for our sample on these elements.
+
 ```{r}
 u28 <- ggplot(chem_red, aes(x = SiO2, y = CaO,  fill = id, shape = id))
 u28 <- u28 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
@@ -905,5 +918,15 @@ ggplotly(u28, width = 1000, height = 800)
 R. W. Le Maitre (editor), A. Streckeisen, B. Zanettin, M. J. Le Bas, B. Bonin, P. Bateman, G. Bellieni, A. Dudek, S. Efremova, J. Keller, J. Lamere, P. A. Sabine, R. Schmid, H. Sorensen, and A. R. Woolley, Igneous Rocks: A Classification and Glossary of Terms, Recommendations of the International Union of Geological Sciences, Subcommission of the Systematics of Igneous Rocks. Cambridge University Press, 2002.
 
 # Papers using versions of this code.
+
+Walsh, A.A., Blockley, S.P., Milner, A.M. and Martin-Puertas, C., 2023. Updated age constraints on key tephra markers for NW Europe based on a high-precision varve lake chronology. Quaternary Science Reviews, 300, p.107897. [read it here](https://www.sciencedirect.com/science/article/pii/S0277379122005285#fig2)
+
+Carter‐Champion, A., Abrook, A.M., Pike, J.H., Matthews, I.P., Palmer, A.P. and Lowe, J.J., 2022. Ice‐sheet deglaciation and Loch Lomond Readvance in the eastern Cairngorms: implications of a Lateglacial sediment record from Glen Builg. Journal of Quaternary Science, 37(8), pp.1332-1347. [read it here](https://onlinelibrary.wiley.com/doi/10.1002/jqs.3448)
+
+Walsh, A.A., Blockley, S.P., Milner, A.M., Matthews, I.P. and Martin-Puertas, C., 2021. Complexities in European Holocene cryptotephra dispersal revealed in the annually laminated lake record of Diss Mere, East Anglia. Quaternary Geochronology, 66, p.101213.  [read it here](https://www.sciencedirect.com/science/article/pii/S1871101421000637)
+ 
+Palmer, A.P., Matthews, I.P., Lowe, J.J., MacLeod, A. and Grant, R., 2020. A revised chronology for the growth and demise of Loch Lomond Readvance (‘Younger Dryas’) ice lobes in the Lochaber area, Scotland. Quaternary Science Reviews, 248, p.106548.[read it here](https://www.sciencedirect.com/science/article/pii/S0277379120305102)
+ 
+Lowe, J., Matthews, I., Mayfield, R., Lincoln, P., Palmer, A., Staff, R. and Timms, R., 2019. On the timing of retreat of the Loch Lomond (‘Younger Dryas’) Readvance icefield in the SW Scottish Highlands and its wider significance. Quaternary Science Reviews, 219, pp.171-186.[read it here](https://www.sciencedirect.com/science/article/pii/S0277379119301957)
 
 
