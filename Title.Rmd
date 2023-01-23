@@ -1,20 +1,16 @@
 ---
-title: "AshplotR"
+title: "AshlplotR"
 author: "Ian Matthews & Joshua Pike"
+always_allow_html: yes
+output: github_document
 date: "`r Sys.Date()`"
-output:
-  html_document:
-    toc: true
-    toc_float: true
-    theme: cerulean
-    code_download: true
 ---
 
-# 1.0 Introduction
+# Introduction
 
-This script can be used to create bi-plots and Harker plots of all tephra major elemental data. It includes: tips for flitering data, interactive exploration of the data, more complex plots, using kernel densities to delimit chemical envelopes, and some discussion on identifying useful elements for discrimination via multivariate analysis. Guidance for saving plots as .svg or .pdf files is also provided. All the code used to produce this document is downloadable as an RMarkdown file to the right of this page and should appear for each specific plot generated. To run this you will require r and RStudio. We are happy for you to use, share and improve our code, but would ask that you cite this as a point of origin for the code.
+This script can be used to create bi-plots and Harker plots of all tephra major elemental data. It includes interactive exploration of the data and some discussion on identifying useful elements for discrimination. Guidance for saving plots as .svg or .pdf files is also provided. All the code used to produce this document is downloadable as an RMarkdown file. To run this you will require r and RStudio. We are happy for you to use, share and improve our code, but would ask that you cite this as a poin tof origin for the plots.
 
-## Load packages
+## load packages
 
 We first load in packages required to generate the plots and manipulate the data. You may need to install these packages in r or update them to work correctly.
 
@@ -22,7 +18,6 @@ We first load in packages required to generate the plots and manipulate the data
 library(ggplot2)
 library(factoextra)
 library(readr)
-library(psych)
 library(compositions)
 library(gganimate)
 library(cowplot)
@@ -33,64 +28,56 @@ library(svglite)
 library(png)
 library(here)
 library(ggdensity)
-library(ggrepel)
-library(viridis)
 ```
 
 
-# 2.0 Loading your data
+## Load your data
 
-Data should be placed within a 'Data' folder created in your project directory. As this is a Markdown script the 'here' package is used to ensure that project links do not break when moving scripts around, however you may not need to do this if you have a preferred data storage approach. As long as you start a new R project and drop this script into it then set up 'Data' and 'Script' folders then it will work. Data files should be in .csv format and contain the group of the tephra as column 1 under the title "id" (see console output below for format). Loaded here are some data for core ODP-980 in the North Atlantic and a terrestrial site from the UK called MT. These data were published by Candy et al. (2021) and the paper can be found [here](https://doi.org/10.1002/jqs.3367).
+Any data placed within the the data file of the r project can be read using the code outlined below. As this is a Markdown script the 'here' package is used to ensure that project links do not break when moving scripts around. As long as you start a new R project and drop this script into it (using the structure outlined on the home page) then it will work. Data files should be in .csv format and contain the group of the tephra as column 1 under the title "id" (see example files for reference). Loaded here are some data for core ODP-980 in the North Atlantic and a terrestrial site from the UK called MT.
 
 ```{r}
-chem <- here::here("Data","ODP_norm.csv") %>% read.csv()
+chem <- here::here("Data","Borrobol_type.csv") %>% read.csv()
 ```
 
-## 2.1 Check your data has loaded correctly
-We can first just inspect the data in the console using the 'head' command, and then summarise it using the describe function of the psych package. These commands produce a couple of basic tables which should allow you to check whether you have correctly loaded the data you wish to analyse.
-```{r}
-head(chem)
-describe(chem)
-```
+## Check your data has loaded correctly
 
-## 2.2 Better tables in r.
-The main problem with the console output from r is that produces tables that are not pretty to view. This can largely be addressed by the 'gt' package which produces far nicer output in an html format. 
 The following script produces a summary table of mean values and number of analyses in your data.
 
-```{r echo=FALSE}
+```{r}
 chem_sum <- chem %>% group_by(id) %>% dplyr::summarise(                                            
                                                        count=n(),
                                                        SiO2.= mean(SiO2),
-                                                       sd1 = sd(SiO2),
+                                                       dev_1 = sd(SiO2),
                                                        TiO2. = mean(TiO2),
-                                                       sd2 = sd(TiO2),
+                                                       dev_2 = sd(TiO2),
                                                        Al2O3. = mean(Al2O3),
-                                                       sd3 = sd(Al2O3),
+                                                       dev_3 = sd(Al2O3),
                                                        FeOt = mean(FeO),
-                                                       sd4 = sd(FeO),
+                                                       dev_4 = sd(FeO),
                                                        MnO.= mean(MnO),
-                                                       sd5 = sd(MnO),
+                                                       dev_5 = sd(MnO),
                                                        MgO.= mean(MgO),
-                                                       sd6 = sd(MgO),
+                                                       dev_6 = sd(MgO),
                                                        CaO.= mean(CaO),
-                                                       sd7 = sd(CaO),
+                                                       dev_7 = sd(CaO),
                                                        Na2O. = mean(Na2O),
-                                                       sd8 = sd(Na2O),
+                                                       dev_8 = sd(Na2O),
                                                        K2O. = mean(K2O),
-                                                       sd9 = sd(K2O),
+                                                       dev_9 = sd(K2O),
                                                        P2O5. = mean(P2O5),
-                                                       sd10 = sd(P2O5),
+                                                       dev_10 = sd(P2O5),
                                                        Total.=mean(Total),
-                                                       sd11 = sd(Total))
+                                                       dev_11 = sd(Total))
 chem_sum <- chem_sum %>% mutate(across(where(is.numeric), ~ round(., digits = 2)))
-chem_sum <- chem_sum %>% rename(layer = id, n = count)
-
+chem_sum %>% rename(layer = id, n = count , SiO2 = SiO2., sd1 = dev_1, TiO2 = TiO2. , sd2 = dev_2)
 
 gt(chem_sum)
 ```
-## 2.3 Make TAS calculations
 
-To calculate for the TAS plot the data require normalisation of the data. The data used here has been normalised already so this step is largely redundant, but this is not the case for all tephra data and you might prefer to utilise unormalised data for your analyses, especially if you are interested in the effects of analytical totals on your data. This code does not modify your orignal data so can be safely run for both normalised and unormalised data. It is required for the TAS plot so should be run regardless of the state of your data.
+
+## Make TAS calculations
+
+To calculate for the TAS plot the data require normalisation of the data. The rest of the script uses unnormalised data for plotting, but the code below can be used to normalise other data also by replacing the element to be normalise.
 
 ```{r}
 TAS_x <- (100/ chem [["Total"]]) * chem [["SiO2"]]
@@ -99,20 +86,20 @@ TAS_y <- (100/ chem [["Total"]]) * (chem [["K2O"]] + chem [["Na2O"]])
 chem <- cbind(chem, TAS_x, TAS_y)
 ```
 
-# 3.0 Filtering data
-It is possible your datasheet contains multiple types of tephra chemistry which would benefit from filtering before plotting. I suggest this is carried out initially by using silica values as a divisor. Rhyolites >68% silica would be a case for this. However, it might be worth plotting everything first before then selecting a filter to ensure vital data is not being excluded. Here we continue with all data being plotted before filtering later in the script when making comparisons.
+# Filtering mixed datasets
+It is possible your datasheet contains multiple types of tephra which would benefit from filtering before plotting. I suggest this is carried out by using silica values as a divisor. Rhyolites >69% silica is a case for this. However, it might be worth plotting everything first before then selecting a filter to ensure vital data is not being excluded.
 ```{r}
-#chem <- filter(chem, SiO2 >68) ## code is commented order to retain all data at this stage.
+chem <- filter(chem, SiO2 >68)
 ```
 
 
 
-# 4.0 Plotting your data
+# Plotting the data
 
 First we generate a series of plots from all possible pairs of elements.
 
 ```{r}
-p1 <- ggplot(chem, aes(x = TAS_x, y = TAS_y, fill = id, shape = id)) # this uses the TAS calculations made earlier in step 2.3.
+p1 <- ggplot(chem, aes(x = TAS_x, y = TAS_y, fill = id, shape = id))
 p2 <- ggplot(chem, aes(x = SiO2, y = TiO2, fill = id, shape = id))
 p3 <- ggplot(chem, aes(x = SiO2, y = Al2O3, fill = id, shape = id))
 p4 <- ggplot(chem, aes(x = SiO2, y = FeO,  fill = id, shape = id))
@@ -162,8 +149,8 @@ p46 <- ggplot(chem, aes(x = K2O, y = P2O5,  fill = id, shape = id))
 ```
 
 
-## 4.1 Custom tephra theme
-To ensure consistency and to provide a shortcut of coding it everytime we set up a custom tephra plotting theme. This means all of our plots will have the same sized fonts etc...
+## Custom tephra theme
+To ensure consistency and to provide a shortcut of coding it everytime we set up[ a custom tephra plotting theme. This means all of our plots will have the same sized fonts etc...
 
 
 ```{r}
@@ -175,7 +162,7 @@ Tephra.theme <-theme_bw()+theme(axis.title.x=element_text(size=16),
         panel.grid.minor = element_blank())
 ```
 
-## 4.2 Custom colour palette
+## Custom colour palette
 
 The hex numbers below specify a custom colour palette for plotting. These can be altered but were slected in order to help those with colour vision deficiencies, and this should be considered when making changes. At present 35 layers can be plotted using this pallete. If you have more than 35 groups of data you will either have to specify additional colours or consider splitting your dataset. The latter might be more appropriate for improving the final clarity in the plots. 
 
@@ -185,7 +172,7 @@ chempalette <- c("#209A24","#A769EE","#B4C428","#e30303","#000000","#EF139D","#3
 
 The palette is known as "chempalette".
 
-# 5.0 Biplots {.tabset .tabset-pills}
+# Figures {.tabset .tabset-pills}
 
 We first generate the simple bi-plots of each element. This initial explorative approach facilitates data checking for unusual analyses and permits the identification of elements with significant variability.
 
@@ -604,31 +591,31 @@ p46 <- p46 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("K2O (wt%)")+yla
   Tephra.theme
 p46
 ```
+# {-}
 
-## 5.1  Saving plots
+# Saving individual plots
 
-We propose exporting your individual plots in .svg format. This is a vector file format that preserves your data without size and scaling issues. It is also readable and editable by software like Adobe Illustrator, Affinity Designer, or free alternatives like Inkscape. Using the file structure presented here the all plots can be named appropriately and will be saved in the Output -> Plots folder. The width and height and dpi outputs can be altered but override the preview functions in Rstudio and we recommend that you view the svg file directly in you preferred image editor to understand how it might look.
+We propose exporting your plots in .svg format. This is a vector file format that preserves your data without size and scaling issues. It is also readable and editable by software like Adobe Illustrator, Affinity Designer, or free alternatives like Inkscape. .Using the file structure presented here the all plots can be named appropriately and will be saved in the Output -> Plots folder. The width and height and dpi outputs can be altered but override the preview functions in Rstudio and we recommend that you view the svg file directly in you preferred image editor to understand how it might look.
 
 ```{r}
 ggsave( filename = file.path("Script", "Output","Plots","fig1.svg"), plot = p1, width = 12, height = 6, dpi = 300)
 ```
 
-# {-}
+# Multivariate analysis {.tabset .tabset-pills}
+Multivariate analysis via ordination is often a helpful way of exploring your data. It permits the identification of useful elements for discrimination and facilitates dimension reduction. Unfortunately, percentage data can have problematic covariation and should be 'freed' from their compositional sum where possible. This can be achieved via undertaking a centred log-ratio transform.
 
-# 6.0 Multivariate analysis {.tabset .tabset-pills}
-Multivariate analysis via ordination is often a helpful way of exploring your data. It permits the identification of useful elements for discrimination and facilitates dimension reduction. Unfortunately, percentage data can have problematic covariation and should be 'freed' from their compositional sum where possible. This can be achieved via undertaking a centred log-ratio transform. This is performed using the code given below
-
+## centred log-ratio data table
 ```{r}
-chem_multi <- chem[ -c(1,6,11,12,13,14,15)] ## check columns to drop. Currently dropping id, MnO, P2O5, Total, and TAS calculations to perform the clr transform.
+chem_multi <- chem[ -c(1,6,11,12)] ## check columns to drop. Currently dropping id, MnO, P2O5, and Total to perform the clr transform.
 chem_multi[is.na(chem_multi)] <- 0.005 # replace NAs with half the detection limit
 chem_multi_clr <- clr(chem_multi)
 cmclr <- as.data.frame(chem_multi_clr)
-head(cmclr) # This permits us the opportunity to view the centred log-ratio dataset.
+head(cmclr)
 ```
 
 We can summarise the importance of the resulting principal components by summarizing how much of the total variance is captured by each principal component.
 
-## 6.1 PCA summary
+## PCA summary
 ```{r echo=FALSE}
 pcascores <- prcomp(cmclr)
 summ <- as.data.frame(summary(pcascores)$importance)
@@ -637,7 +624,7 @@ summ %>% gt()
 ```
 If this has captured a significant amount of variation it would be worth plotting the output in order to identify the important variables in determining the changes observed.
 
-## 6.3 PCA scores scree plot
+## PCA scores scree plot
 ```{r warning = FALSE, echo=FALSE}
 fviz_eig(pcascores)
 
@@ -645,7 +632,7 @@ fviz_eig(pcascores)
 
 This is a visual representation of the summary table showing the percentage of the total variance explained by each dimension.
 
-## 6.4 Variables PCA plot
+## Variables PCA plot
 ```{r warning = FALSE, echo=FALSE}
 fviz_pca_var(pcascores, col.var = "contrib", # Color by contributions to the PC
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
@@ -654,18 +641,18 @@ fviz_pca_var(pcascores, col.var = "contrib", # Color by contributions to the PC
 ```
 
 
-## 6.5 Loadings dimension 1
+## Loadings dimension 1
 ```{r echo=FALSE}
 fviz_contrib(pcascores, choice="var", axes = 1,fill = "#00AFBB", color = "black") +theme_minimal() +theme(axis.text.x = element_text(angle=45))
 ```
 
-## 6.6 Loadings dimension 2
+## Loadings dimension 2
 
 ```{r echo=FALSE}
 fviz_contrib(pcascores, choice="var", axes = 2,fill = "#00AFBB", color = "black") +theme_minimal() +theme(axis.text.x = element_text(angle=45))
 ```
 
-## 6.7 PCA - Biplot
+## PCA - Biplot
 ```{r warning = FALSE, echo=FALSE}
 fviz_pca_biplot(pcascores, repel = FALSE,
                 col.var = "#2E9FDF", # Variables color
@@ -673,7 +660,7 @@ fviz_pca_biplot(pcascores, repel = FALSE,
 )
 ```
 
-## 6.8 PCA - grouped
+## PCA - grouped
 ```{r warning = FALSE, echo=FALSE}
 pcout <- pcascores$x
 id <- as.data.frame(chem$id)
@@ -692,9 +679,10 @@ pc1plot <- pc1plot + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("PC1")+y
 
 # {-}
 
-# 7.0 Interactive figures {.tabset .tabset-pills}
 
-The function ggplotly within the plotly package is extremely useful for interactively examining data. ggplotly plots allow you to zoom into areas of interest and turn layers on and off as well as saving low resolution .png files of zoomed sections of your plots. We refer to these as iPlots (interactive plots) in order to distinguish them from static plots presented above. These are excellent for generating quick plots to support your inferences about your data. The plots can be exported as .png files.
+# Interactive figures {.tabset .tabset-pills}
+
+The function ggplotly within the plotly package is extremely useful for interactively examining data. ggplotly plots allow you to zoom into areas of interest and turn layers on and off as well as saving low resolution .png files of zoomed sections of your plots.We refer to these as iPlots in order to distinguish them from static plots presented above.
 
 ## iTAS plot
 ```{r warning = FALSE, echo=FALSE}
@@ -724,9 +712,7 @@ ggplotly(p42, width = 1000, height = 800, dynamicTicks = TRUE)
 
 ## {-}
 
-# 8.0 Saving all figures to a .pdf
-
-
+# Saving all figures to a .pdf
 ```{r}
 l <- list(p1, p2, p3, p4, p5, p6, p7, p8, p9, p47, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46)
 pdf("allplotsout.pdf", width = 12, height = 6)
@@ -734,8 +720,8 @@ invisible(lapply(l, print))
 dev.off()
 ```
 
-# 9.0 Harker plot
-It is frequently useful to plot all of the collected elemental data against SiO[2]. This permits an assessment of groupings within the data and which elements might be useful discriminators. Additionally, wt% K2O vs SiO2 can further classify the tephra to low, mid and high Potassium values. The dividing lines included here are from xxxxxxxx.
+## Harker plot
+It is frequently useful to plot all of the collected elemental data against SiO[2]. This permits an assessme tof groupings within the data and which elements might be useful discriminators. Additionally, wt% K2O vs SiO2 can further classify the tephra to low, mid and high Potassium values. The dividing lines included here are from xxxxxxxx.
 ```{r fig.height = 10, fig.width = 18}
 g1 <- plot_grid(p1 + theme(legend.position = "none"), 
                 p2 + theme(legend.position = "none"),
@@ -762,9 +748,8 @@ print(g1)
 
 ```
 
-# 10.0 Other useful plots
-
-## 10.1 Creating an inset within a figure
+# Other useful R tricks
+## Creating an inset within a figure
 ```{r warning=FALSE }
 p100 <- ggplot(chem, aes(x = TAS_x, y = TAS_y, fill = id, shape = id))
 p100 <- p100 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("Na2O+K2O (wt%)")+
@@ -795,8 +780,8 @@ ggsave( filename = file.path("Script", "Output","Plots","insert_plot.svg"), plot
 
 print(fig_in)
 ```
-## 10.2 Creating a HDR plot to simplify your data.
-Simplifying the data we create to make more visually compelling figures can be achieved using highest density regions. The following code permits this as an addition to the previously created plots and as new plots. It can be added easily to any of the previously created plots by changing the p code. Visibility of the density regions can be applied to just reference data or entire datasets. Opacity is varied using the alpha command and the probability range can be altered in the 'probs' argument. You may need to vary the x and y axes in order to fit the full range in to the plot. These types of plots are best used for giving better eruptive chemical envelopes (fields) than hand drawing around existing data. 
+## Creating a HDR plot to simplify your data.
+Simplifying the data we create to make more visually compelling figures can be acheived using highest density regions. The following code permits this as an addition to the previosuly created plots. It can be added easily to any of the previously created plots by changing the p code. Visibility of the density regions can be applied to just reference data or entire datasets. Opacity is varied using the alpha command and the probability range can be altered in the 'probs' argument. You may need to vary the x and y axes in order to fit the full range in to the plot.
 
 ```{r}
 p28den <- p28 +
@@ -806,8 +791,7 @@ print(p28den)
 
 ```
 
-## 10.3 Faceted plots to deal with lots of data
-The kde plots are interesting but messy and still have lots of overplotting. This is not ideal for data visualisation. While it may be helpful to vary the colours or opacity, there is only so much that this can acheive. If you have particularly messy data like the ODP-980 dataset I'd suggest creating plot 'facets' using the following code.
+The plots are nice but messy and still have lots of overplotting. If you have particularly messy data I'd suggest creating plot 'facets' using the following code.
 
 ```{r}
 p28den_facet <- p28 +
@@ -817,30 +801,27 @@ geom_hdr(method = "kde", alpha  = 0.5, xlim = c(0,100), ylim = c(0,30), show.leg
 
 print(p28den_facet)
 ```
-The facet removes some of the complexity, but arguably you lose some of the key information about total ranges of chemical data. In the second faceted plot (below) we remove the kernel density information and use the total dataset as a background to the facets in order to understand the total range and our own individual samples. This requires a little bit of data manipulation in order to create two datasets, one for the total data spread and another for the facets.
+
 
 ```{r}
-chem2 <- dplyr::select(chem, -Total) # creates the second dataset fpr plotting
-chem2 <- rename(chem2, id2=id) # removes confusion over column names
-f19 <- ggplot(chem, aes(x = FeO, y = CaO,  fill = id, shape = id)) # creates a new plot of FeO and CaO.
+chem2 <- dplyr::select(chem, -Total)
+chem2 <- rename(chem2, id2=id)
+f19 <- ggplot(chem, aes(x = Al2O3, y = CaO,  fill = id, shape = id))
 
 f19 <- f19 + 
-    geom_point(data = chem2, inherit.aes = FALSE, aes(x=FeO, y = CaO, shape = id2), colour = "grey70") + ## adds all the data to the plot using a grey colour scheme
-  geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+ # adds all the data again but retain the groups
-  scale_fill_manual(values = chempalette) + ## adds standard colours
-  Tephra.theme + # adds standard theme
-  facet_wrap(~ id) # facets the diagram using id in the main dataset.
+    geom_point(data = chem2, inherit.aes = FALSE, aes(x=Al2O3, y = CaO, shape = id2), colour = "grey70") +
+  geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("Al2O3 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+  scale_fill_manual(values = chempalette) +
+  Tephra.theme +
+  facet_wrap(~ id)
 
 ggsave( filename = file.path("Script", "Output","Plots","faceted plot.pdf"), plot = f19, width = 25, height = 16, units = "cm", dpi = 300)
 
 print(f19)
 
 ```
-
-# 11.0 Comparing unknown samples
-
 ```{r}
-unknowns <- here::here("Data","MT_norm.csv") %>% read.csv()
+unknowns <- here::here("Data","Ardtoe_16.5_B_type.csv") %>% read.csv()
 gt(unknowns)
 ```
 ```{r}
@@ -874,25 +855,24 @@ unknown_sum %>% rename(layer = id2, n = count , SiO2 = SiO2., sd1 = dev_1, TiO2 
 gt(unknown_sum)
 ```
 ```{r}
-chem_red <- filter(chem, IRD == "NO") #We might want to filter our data by age or other stratigraphic information. here we are uexcluding layers identified as ice rafted debris.
+chem_red <- filter(chem, age == "WI"|age == "GS2")
 
-chem_red <- filter(chem_red, SiO2 >69 & FeO <4) # Our unknown sample is a rhyolite so we can now employ our filtering by value
-
-c28 <- ggplot(chem_red, aes(x = SiO2, y = CaO, fill = id, shape = id))
+c28 <- ggplot(chem_red, aes(x = FeO, y = CaO,  fill = id, shape = id))
 c28 <- c28 + 
-  geom_hdr(method = "kde", alpha  = 0.4, xlim = c(0,100), ylim = c(0,30), show.legend = TRUE, smooth = TRUE, n = 500, probs = c(0.95), color = "black") +
-   scale_fill_viridis(discrete = TRUE) +
-    geom_point(data = unknowns, inherit.aes = FALSE, aes(x=SiO2, y = CaO, shape = id2, fill = id2), size=4, alpha=0.7, show.legend = FALSE) +
-  xlab("SiO2 (wt%)") +
+  geom_hdr(method = "kde", alpha  = 0.5, xlim = c(0,100), ylim = c(0,30), show.legend = FALSE, smooth = TRUE, n = 1000, probs = c(0.95)) +
+   scale_fill_manual(values = chempalette) +
+    geom_point(data = unknowns, inherit.aes = FALSE, aes(x=FeO, y = CaO, shape = id2, fill = id2), size=4, alpha=0.8) +
+  xlab("FeO (wt%)") +
   ylab("CaO (wt%)") + 
+   scale_fill_manual(values = chempalette) +
   scale_shape_manual(values=c(1:5,7,11, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25)) +
   Tephra.theme
 print(c28)
 ```
 ```{r}
-u28 <- ggplot(chem_red, aes(x = SiO2, y = CaO,  fill = id, shape = id))
-u28 <- u28 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("SiO2 (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
-      geom_point(data = unknowns, inherit.aes = FALSE, aes(x=SiO2, y = CaO, shape = id2, fill = id2), size=4, alpha=0.8) +
+u28 <- ggplot(chem_red, aes(x = FeO, y = CaO,  fill = id, shape = id))
+u28 <- u28 + geom_point(aes(fill = id), size=4, alpha=0.8)+xlab("FeO (wt%)")+ylab("CaO (wt%)")+scale_shape_manual(values=c(21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25, 21:25))+
+      geom_point(data = unknowns, inherit.aes = FALSE, aes(x=FeO, y = CaO, shape = id2, fill = id2), size=4, alpha=0.8) +
   scale_fill_manual(values = chempalette) +
   Tephra.theme
 
@@ -904,6 +884,13 @@ ggplotly(u28, width = 1000, height = 800)
 # References
 R. W. Le Maitre (editor), A. Streckeisen, B. Zanettin, M. J. Le Bas, B. Bonin, P. Bateman, G. Bellieni, A. Dudek, S. Efremova, J. Keller, J. Lamere, P. A. Sabine, R. Schmid, H. Sorensen, and A. R. Woolley, Igneous Rocks: A Classification and Glossary of Terms, Recommendations of the International Union of Geological Sciences, Subcommission of the Systematics of Igneous Rocks. Cambridge University Press, 2002.
 
-# Papers using versions of this code.
+
+
+
+
+
+
+
+
 
 
