@@ -8,6 +8,8 @@ output:
     toc_float: true
     theme: cerulean
     code_download: true
+    includes:
+      in_header: GA_script.html
 ---
 
 # 1.0 Introduction
@@ -53,8 +55,8 @@ head(chem)
 describe(chem)
 ```
 
-## 2.2 Better tables in r.
-The main problem with the console output from r is that produces tables that are not pretty to view. This can largely be addressed by the 'gt' package which produces far nicer output in an html format. 
+## 2.2 Better tables in R.
+The main problem with the console output from R is that produces tables that are not pretty to view. This can largely be addressed by the 'gt' package which produces far nicer output in an html format. 
 The following script produces a summary table of mean values and number of analyses in your data.
 
 ```{r echo=FALSE}
@@ -88,6 +90,7 @@ chem_sum <- chem_sum %>% rename(layer = id, n = count)
 
 gt(chem_sum)
 ```
+
 ## 2.3 Make TAS calculations
 
 To calculate for the TAS plot the data require normalisation of the data. The data used here has been normalised already so this step is largely redundant, but this is not the case for all tephra data and you might prefer to utilise unormalised data for your analyses, especially if you are interested in the effects of analytical totals on your data. This code does not modify your orignal data so can be safely run for both normalised and unormalised data. It is required for the TAS plot so should be run regardless of the state of your data.
@@ -163,7 +166,7 @@ p46 <- ggplot(chem, aes(x = K2O, y = P2O5,  fill = id, shape = id))
 
 
 ## 4.1 Custom tephra theme
-To ensure consistency and to provide a shortcut of coding it everytime we set up a custom tephra plotting theme. This means all of our plots will have the same sized fonts etc...
+To ensure consistency and to provide a short cut from coding it every time, we set up a custom tephra plotting theme. This means all of our plots will have the same sized fonts etc...
 
 
 ```{r}
@@ -187,7 +190,7 @@ The palette is known as "chempalette".
 
 # 5.0 Biplots {.tabset .tabset-pills}
 
-We first generate the simple bi-plots of each element. This initial explorative approach facilitates data checking for unusual analyses and permits the identification of elements with significant variability.
+We first generate the simple bi-plots of each element. This initial exploration approach facilitates data checking for unusual analyses and permits the identification of elements with significant variability.
 
 ## TAS plot Le Maitre et al. (2002)
 ```{r TAS plot, echo=FALSE}
@@ -900,6 +903,7 @@ c28 <- c28 +
   Tephra.theme # add the tephra theme.
 print(c28)
 ```
+
 We can see that only samples 54.79-54.83 and 51.09-51.13 have any overlap with our unknown at 95% probability. It is worth noting here that this is in part down to our filtering of the data in the previous step. We need to be sure that we are not excluding important data when undertaking this step otehrwise our resulting kdes can be strongly altered. Therefore it is also sensible to plot the raw point data for comparison also. The interactive plot below uses the same elements but permits exploration of the data. From this we can see that 54.79-54.83 is the best match for our sample on these elements.
 
 ```{r}
